@@ -1,11 +1,22 @@
 cmake_minimum_required( VERSION 2.6 )
 project( ES3_Book )
 
-include_directories( External/Include )
+#include_directories( External/Include )
 include_directories( Common/Include )
 
 find_library( OPENGLES3_LIBRARY GLESv2 "OpenGL ES v3.0 library")
 find_library( EGL_LIBRARY EGL "EGL 1.4 library" )
+find_library( DRM_LIBRARY drm "EGL 1.4 library" )
+message(${OPENGLES3_LIBRARY})
+message(${EGL_LIBRARY})
+message(${DRM_LIBRARY})
+
+include_directories("/opt/rk-xwayland/2.3.3/sysroots/aarch64-rk-linux/usr/include/drm")
+
+set(CMAKE_BUILD_TYPE Debug)
+
+link_libraries(m)
+link_libraries(drm)
  
 SUBDIRS( Common
          Chapter_2/Hello_Triangle

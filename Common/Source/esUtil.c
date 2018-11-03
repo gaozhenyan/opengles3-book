@@ -45,6 +45,7 @@
 #include <string.h>
 #include "esUtil.h"
 #include "esUtil_win.h"
+#include "egl.h"
 
 #ifdef ANDROID
 #include <android/log.h>
@@ -166,84 +167,20 @@ GLboolean ESUTIL_API esCreateWindow ( ESContext *esContext, const char *title, G
    {
       return GL_FALSE;
    }
-
-   esContext->eglDisplay = eglGetDisplay( esContext->eglNativeDisplay );
-   if ( esContext->eglDisplay == EGL_NO_DISPLAY )
-   {
+   struct global_ctx_s* gctx = (struct global_ctx_s*)esContext->platformData;
+   if (init_egl(gctx) < 0) {
+     fprintf(stderr, "%s\n", "Failed to init egl");
       return GL_FALSE;
    }
 
-   // Initialize EGL
-   if ( !eglInitialize ( esContext->eglDisplay, &majorVersion, &minorVersion ) )
-   {
-      return GL_FALSE;
-   }
+   esContext->eglDisplay = gctx->egl.display;
+   esContext->eglContext = gctx->egl.context;
+   esContext->eglSurface = gctx->egl.surface;
 
-   {
-      EGLint numConfigs = 0;
-      EGLint attribList[] =
-      {
-         EGL_RED_SIZE,       5,
-         EGL_GREEN_SIZE,     6,
-         EGL_BLUE_SIZE,      5,
-         EGL_ALPHA_SIZE,     ( flags & ES_WINDOW_ALPHA ) ? 8 : EGL_DONT_CARE,
-         EGL_DEPTH_SIZE,     ( flags & ES_WINDOW_DEPTH ) ? 8 : EGL_DONT_CARE,
-         EGL_STENCIL_SIZE,   ( flags & ES_WINDOW_STENCIL ) ? 8 : EGL_DONT_CARE,
-         EGL_SAMPLE_BUFFERS, ( flags & ES_WINDOW_MULTISAMPLE ) ? 1 : 0,
-         // if EGL_KHR_create_context extension is supported, then we will use
-         // EGL_OPENGL_ES3_BIT_KHR instead of EGL_OPENGL_ES2_BIT in the attribute list
-         EGL_RENDERABLE_TYPE, GetContextRenderableType ( esContext->eglDisplay ),
-         EGL_NONE
-      };
-
-      // Choose config
-      if ( !eglChooseConfig ( esContext->eglDisplay, attribList, &config, 1, &numConfigs ) )
-      {
-         return GL_FALSE;
-      }
-
-      if ( numConfigs < 1 )
-      {
-         return GL_FALSE;
-      }
-   }
-
-
-#ifdef ANDROID
-   // For Android, need to get the EGL_NATIVE_VISUAL_ID and set it using ANativeWindow_setBuffersGeometry
-   {
-      EGLint format = 0;
-      eglGetConfigAttrib ( esContext->eglDisplay, config, EGL_NATIVE_VISUAL_ID, &format );
-      ANativeWindow_setBuffersGeometry ( esContext->eglNativeWindow, 0, 0, format );
-   }
-#endif // ANDROID
-
-   // Create a surface
-   esContext->eglSurface = eglCreateWindowSurface ( esContext->eglDisplay, config, 
-                                                    esContext->eglNativeWindow, NULL );
-
-   if ( esContext->eglSurface == EGL_NO_SURFACE )
-   {
-      return GL_FALSE;
-   }
-
-   // Create a GL context
-   esContext->eglContext = eglCreateContext ( esContext->eglDisplay, config, 
-                                              EGL_NO_CONTEXT, contextAttribs );
-
-   if ( esContext->eglContext == EGL_NO_CONTEXT )
-   {
-      return GL_FALSE;
-   }
-
-   // Make the context current
-   if ( !eglMakeCurrent ( esContext->eglDisplay, esContext->eglSurface, 
-                          esContext->eglSurface, esContext->eglContext ) )
-   {
-      return GL_FALSE;
-   }
 
 #endif // #ifndef __APPLE__
+
+   platform_preinit(esContext);
 
    return GL_TRUE;
 }
